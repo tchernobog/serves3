@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<!--
+    SPDX-FileCopyrightText: © Matteo Settenvini <matteo.settenvini@montecristosoftware.eu>
+    SPDX-License-Identifier: EUPL-1.2
+-->
+<html>
+    <head></head>
+    <body>
+        <ul>
+            {% for object in objects %}
+            <li><a href="{{ object }}">{{ object }}</a></li>
+            {% endfor %}
+        </ul>
+    </body>
+</html

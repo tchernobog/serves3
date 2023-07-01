@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: © Matteo Settenvini <matteo.settenvini@montecristosoftware.eu>
+# SPDX-License-Identifier: EUPL-1.2
+
+[package]
+name = "serves3"
+version = "0.1.0"
+edition = "2021"
+authors = ["Matteo Settenvini <matteo.settenvini@montecristosoftware.eu>"]
+license = "EUPL-1.2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+config = "0.13"
+lazy_static = "1.4"
+rocket = { git = "https://github.com/SergioBenitez/Rocket", rev = "v0.5.0-rc.3" }
+rocket_dyn_templates = { git = "https://github.com/SergioBenitez/Rocket.git", rev = "v0.5.0-rc.3", features = ["tera"] }
+rust-s3 = "0.32"

@@ -1,0 +1,46 @@
+# SPDX-FileCopyrightText: Public domain.
+# SPDX-License-Identifier: CC0-1.0
+
+repos:
+- repo: https://github.com/pre-commit/pre-commit-hooks
+  rev: v4.4.0
+  hooks:
+  - id: check-yaml
+    name: Check YAML files syntax
+  - id: check-toml
+    name: Check TOML files syntax
+  - id: check-executables-have-shebangs
+    name: Check that executables have shebangs
+  - id: check-shebang-scripts-are-executable
+    name: Check that files with a shebang are executable
+  - id: debug-statements
+    name: Check for leftover debug statements
+  - id: fix-byte-order-marker
+    name: Remove obsolete byte order (BOM) UTF-8 markers
+  - id: end-of-file-fixer
+    name: Ensure that files end with a newline
+  - id: trailing-whitespace
+    name: Ensure no trailing spaces at the end of lines
+
+- repo: https://github.com/Lucas-C/pre-commit-hooks.git
+  rev: v1.4.2
+  hooks:
+  - id: remove-crlf
+    name: Enforce LF instead of CRLF for newlines
+  - id: forbid-tabs
+    name: Check usage of spaces instead of tabs
+    exclude: "src/appendixes/references.bib"
+
+- repo: https://github.com/doublify/pre-commit-rust
+  rev: v1.0
+  hooks:
+  - id: fmt
+    name: Format Rust code
+  - id: cargo-check
+    name: Check Rust code
+
+- repo: https://github.com/fsfe/reuse-tool.git
+  rev: v1.1.2
+  hooks:
+  - id: reuse
+    name: Check copyright and license information
