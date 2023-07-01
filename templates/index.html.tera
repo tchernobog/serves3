@@ -6,7 +6,12 @@
 <html>
     <head></head>
     <body>
+        <h1>{{ path }}</h1>
         <ul>
+            {% if has_parent %}
+            <li><a href="../">..</a></li>
+            {% endif %}
+
             {% for object in objects %}
             <li><a href="{{ object }}">{{ object }}</a></li>
             {% endfor %}

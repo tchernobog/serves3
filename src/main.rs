@@ -1,9 +1,10 @@
 // SPDX-FileCopyrightText: © Matteo Settenvini <matteo.settenvini@montecristosoftware.eu>
 // SPDX-License-Identifier: EUPL-1.2
 
+use s3::serde_types::ListBucketResult;
+
 use {
     lazy_static::lazy_static,
-    rocket::http::ContentType,
     rocket::response::Responder,
     rocket_dyn_templates::{context, Template},
     std::path::PathBuf,
@@ -63,44 +64,98 @@ lazy_static! {
 }
 
 #[derive(Responder)]
-enum Error {
-    #[response(status = 422)]
-    InvalidArgument(String),
+enum FileView {
+    #[response(content_type = "text/html")]
+    Folder(Template),
 
+    #[response(content_type = "application/octet-stream")]
+    File(Vec<u8>),
+}
+
+#[derive(Responder, Debug)]
+enum Error {
     #[response(status = 404)]
     NotFound(String),
 }
 
 #[rocket::get("/<path..>")]
-async fn index(path: PathBuf) -> Result<(ContentType, Template), Error> {
-    let path: String = path
-        .to_str()
-        .ok_or_else(|| Error::InvalidArgument(format!("Invalid path '{}'", path.display())))?
-        .into();
+async fn index(path: PathBuf) -> Result<FileView, Error> {
+    let parent = path.parent();
 
-    let s3_objects = BUCKET
-        .list(path, Some("/".into()))
-        .await
-        .map_err(|_| Error::NotFound("Object not found".into()))?;
+    let s3_path = format!(
+        "{}{}",
+        path.display(),
+        match parent {
+            Some(_) => "/",
+            None => "",
+        }
+    );
 
-    let objects: Vec<String> = s3_objects
-        .into_iter()
-        .flat_map(|list| -> Vec<String> {
-            if let Some(common_prefixes) = list.common_prefixes {
-                common_prefixes.into_iter().map(|dir| dir.prefix).collect()
-            } else {
-                list.contents.into_iter().map(|obj| obj.key).collect()
-            }
-        })
-        .collect();
+    /*
+       The way things work in S3, the following holds for us:
+       - we need to use a slash as separator
+       - folders need to be queried ending with a slash
 
+       We try first to retrieve list an object as a folder. If we fail,
+       we fallback to retrieving the object itself.
+    */
+    let s3_objects = BUCKET.list(s3_path, Some("/".into())).await;
+
+    let s3_objects = match s3_objects {
+        Ok(s3_objects) => s3_objects,
+        Err(_) => {
+            // TODO: this can be big, we should use streaming,
+            // not loading in memory.
+            let data = BUCKET
+                .get_object(format!("{}", path.display()))
+                .await
+                .map_err(|_| Error::NotFound("Object not found".into()))?
+                .bytes()
+                .to_vec();
+            return Ok(FileView::File(data));
+        }
+    };
+
+    let objects = s3_fileview(&s3_objects);
     let rendered = Template::render(
         "index",
         context! {
+            path: format!("{}/", path.display()),
+            has_parent: !path.as_os_str().is_empty(),
             objects
         },
     );
-    Ok((ContentType::HTML, rendered))
+    Ok(FileView::Folder(rendered))
+}
+
+fn s3_fileview(s3_objects: &Vec<ListBucketResult>) -> Vec<&str> {
+    /*
+        if listing a folder:
+        - folders will be under 'common_prefixes'
+        - files will be under the 'contents' property
+    */
+    s3_objects
+        .iter()
+        .flat_map(|list| -> Vec<Option<&str>> {
+            let prefix = if let Some(p) = &list.prefix {
+                p.as_str()
+            } else {
+                ""
+            };
+
+            let folders = list
+                .common_prefixes
+                .iter()
+                .flatten()
+                .map(|dir| dir.prefix.strip_prefix(&prefix));
+            let files = list
+                .contents
+                .iter()
+                .map(|obj| obj.key.strip_prefix(&prefix));
+            folders.chain(files).collect()
+        })
+        .flatten()
+        .collect()
 }
 
 #[rocket::launch]
