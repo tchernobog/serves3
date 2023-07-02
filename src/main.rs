@@ -59,8 +59,7 @@ lazy_static! {
         s3::bucket::Bucket::new(&SETTINGS.bucket_name, region, credentials)
             .expect("Cannot find or authenticate to S3 bucket")
     };
-    static ref FILEVIEW_TEMPLATE: &'static str =
-        { std::include_str!("../templates/index.html.tera") };
+    static ref FILEVIEW_TEMPLATE: &'static str = std::include_str!("../templates/index.html.tera");
 }
 
 #[derive(Responder)]
