@@ -1,0 +1,12 @@
+// SPDX-FileCopyrightText: Public domain.
+// SPDX-License-Identifier: CC0-1.0
+{
+    "recommendations": [
+        "bungcip.better-toml",
+        "ritwickdey.LiveServer",
+        "rust-lang.rust-analyzer",
+        "serayuzgur.crates",
+        "vadimcn.vscode-lldb",
+        "zaaack.markdown-editor",
+    ]
+}

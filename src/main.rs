@@ -82,36 +82,45 @@ async fn index(path: PathBuf) -> Result<FileView, Error> {
        The way things work in S3, the following holds for us:
        - we need to use a slash as separator
        - folders need to be queried ending with a slash
-       - getting the bucket address will return an XML file
-         with all properties; we don't want that.
+       - getting the bucket address (empty prefix) will
+         return an XML file with all properties; we don't
+         want that.
 
        We try first to retrieve list an object as a file. If we fail,
        we fallback to retrieving the equivalent folder.
     */
 
-    // FIXME: this can be big, we should use streaming,
-    // not loading in memory!
-    if !path.as_os_str().is_empty() {
-        let data = BUCKET
-            .get_object(format!("{}", path.display()))
-            .await
-            .map_err(|_| Error::NotFound("Object not found".into()));
+    if let Ok(result) = s3_serve_file(&path).await {
+        Ok(result)
+    } else {
+        let objects = s3_fileview(&path).await?;
+        let rendered = Template::render(
+            "index",
+            context! {
+                path: format!("{}/", path.display()),
+                objects
+            },
+        );
+        Ok(FileView::Folder(rendered))
+    }
+}
 
-        if let Ok(contents) = data {
-            let bytes = contents.bytes().to_vec();
-            return Ok(FileView::File(bytes));
-        }
+async fn s3_serve_file(path: &PathBuf) -> Result<FileView, Error> {
+    let is_root_prefix = path.as_os_str().is_empty();
+    if is_root_prefix {
+        return Err(Error::NotFound("Root prefix is not a file".into()));
     }
 
-    let objects = s3_fileview(&path).await?;
-    let rendered = Template::render(
-        "index",
-        context! {
-            path: format!("{}/", path.display()),
-            objects
-        },
-    );
-    Ok(FileView::Folder(rendered))
+    // FIXME: this can be big, we should use streaming,
+    // not loading in memory!
+    BUCKET
+        .get_object(format!("{}", path.display()))
+        .await
+        .map(|contents| {
+            let bytes = contents.bytes().to_vec();
+            FileView::File(bytes)
+        })
+        .map_err(|_| Error::NotFound("Object not found".into()))
 }
 
 async fn s3_fileview(path: &PathBuf) -> Result<Vec<String>, Error> {
