@@ -60,6 +60,10 @@ lazy_static! {
             .expect("Cannot find or authenticate to S3 bucket")
     };
     static ref FILEVIEW_TEMPLATE: &'static str = std::include_str!("../templates/index.html.tera");
+
+    // Workaround for https://github.com/SergioBenitez/Rocket/issues/1792
+    static ref EMPTY_DIR: tempdir::TempDir = tempdir::TempDir::new("serves3")
+        .expect("Unable to create an empty temporary folder, is the whole FS read-only?");
 }
 
 #[derive(Responder)]
@@ -182,7 +186,10 @@ async fn s3_fileview(path: &PathBuf) -> Result<Vec<String>, Error> {
 #[rocket::launch]
 fn rocket() -> _ {
     eprintln!("Proxying to {} for {}", BUCKET.host(), BUCKET.name());
-    rocket::build()
+
+    let config_figment = rocket::Config::figment().merge(("template_dir", EMPTY_DIR.path())); // We compile the templates in anyway.
+
+    rocket::custom(config_figment)
         .mount("/", rocket::routes![index])
         .attach(Template::custom(|engines| {
             engines
