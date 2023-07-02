@@ -8,7 +8,7 @@
     <body>
         <h1>{{ path }}</h1>
         <ul>
-            {% if has_parent %}
+            {% if path != "/" %}
             <li><a href="../">..</a></li>
             {% endif %}
 

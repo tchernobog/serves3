@@ -29,8 +29,30 @@ Then just configure Apache or NGINX to proxy to the given port. For example:
 
     # ... other options ...
 </VirtualHost>
-
 ```
+
+You probably also want a systemd unit file, for instance `/etc/systemd/system/serves3@.service`:
+
+```ini
+[Unit]
+Description=ServeS3, a S3 proxy
+StartLimitInterval=100
+StartLimitBurst=10
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/serves3
+WorkingDirectory=/etc/serves3/%i/
+Environment=ROCKET_PORT=%i
+
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then, e.g. for running on port 8000, you would put the corresponding configuration file in `/etc/serves3/8000/` and install the unit with `systemctl enable --now servers3@8000.service`.
 
 ## Build and install
 
