@@ -59,6 +59,8 @@ lazy_static! {
         s3::bucket::Bucket::new(&SETTINGS.bucket_name, region, credentials)
             .expect("Cannot find or authenticate to S3 bucket")
     };
+    static ref FILEVIEW_TEMPLATE: &'static str =
+        { std::include_str!("../templates/index.html.tera") };
 }
 
 #[derive(Responder)]
@@ -74,6 +76,9 @@ enum FileView {
 enum Error {
     #[response(status = 404)]
     NotFound(String),
+
+    #[response(status = 500)]
+    UnknownError(String),
 }
 
 #[rocket::get("/<path..>")]
@@ -113,14 +118,19 @@ async fn s3_serve_file(path: &PathBuf) -> Result<FileView, Error> {
 
     // FIXME: this can be big, we should use streaming,
     // not loading in memory!
-    BUCKET
+    let response = BUCKET
         .get_object(format!("{}", path.display()))
         .await
-        .map(|contents| {
-            let bytes = contents.bytes().to_vec();
-            FileView::File(bytes)
-        })
-        .map_err(|_| Error::NotFound("Object not found".into()))
+        .map_err(|_| Error::UnknownError("Unable to connect to S3 bucket".into()))?;
+
+    match response.status_code() {
+        200 | 204 => {
+            let bytes = response.bytes().to_vec();
+            Ok(FileView::File(bytes))
+        }
+        404 => Err(Error::NotFound("Object not found".into())),
+        _ => Err(Error::UnknownError("Unknown S3 error".into())),
+    }
 }
 
 async fn s3_fileview(path: &PathBuf) -> Result<Vec<String>, Error> {
@@ -175,5 +185,10 @@ fn rocket() -> _ {
     eprintln!("Proxying to {} for {}", BUCKET.host(), BUCKET.name());
     rocket::build()
         .mount("/", rocket::routes![index])
-        .attach(Template::fairing())
+        .attach(Template::custom(|engines| {
+            engines
+                .tera
+                .add_raw_template("index", *FILEVIEW_TEMPLATE)
+                .unwrap()
+        }))
 }
