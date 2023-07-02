@@ -172,6 +172,7 @@ async fn s3_fileview(path: &PathBuf) -> Result<Vec<String>, Error> {
 
 #[rocket::launch]
 fn rocket() -> _ {
+    eprintln!("Proxying to {} for {}", BUCKET.host(), BUCKET.name());
     rocket::build()
         .mount("/", rocket::routes![index])
         .attach(Template::fairing())
