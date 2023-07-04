@@ -52,12 +52,12 @@ RestartSec=5s
 WantedBy=multi-user.target
 ```
 
-Then, e.g. for running on port 8000, you would put the corresponding configuration file in `/etc/serves3/8000/` and install the unit with `systemctl enable --now servers3@8000.service`.
+Then, e.g. for running on port 8000, you would put the corresponding configuration file in `/etc/serves3/8000/` and install the unit with `systemctl enable --now serves3@8000.service`.
 
 ## Build and install
 
 ```bash
-cargo install --root /usr/local # for instance
+cargo install --root /usr/local --path . # for instance
 cd run-folder # folder with Settings.toml
 serves3
 ```
