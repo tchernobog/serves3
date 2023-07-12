@@ -4,6 +4,7 @@
 use {
     lazy_static::lazy_static,
     rocket::response::Responder,
+    rocket::serde::Serialize,
     rocket_dyn_templates::{context, Template},
     std::path::PathBuf,
 };
@@ -75,6 +76,14 @@ enum FileView {
     File(Vec<u8>),
 }
 
+#[derive(Serialize)]
+struct FileViewItem {
+    path: String,
+    size: String,
+    size_bytes: u64,
+    last_modification: String,
+}
+
 #[derive(Responder, Debug)]
 enum Error {
     #[response(status = 404)]
@@ -136,7 +145,7 @@ async fn s3_serve_file(path: &PathBuf) -> Result<FileView, Error> {
     }
 }
 
-async fn s3_fileview(path: &PathBuf) -> Result<Vec<String>, Error> {
+async fn s3_fileview(path: &PathBuf) -> Result<Vec<FileViewItem>, Error> {
     /*
         if listing a folder:
         - folders will be under 'common_prefixes'
@@ -156,31 +165,62 @@ async fn s3_fileview(path: &PathBuf) -> Result<Vec<String>, Error> {
 
     let objects = s3_objects
         .iter()
-        .flat_map(|list| -> Vec<Option<&str>> {
+        .flat_map(|list| -> Vec<Option<FileViewItem>> {
             let prefix = if let Some(p) = &list.prefix {
                 p.as_str()
             } else {
                 ""
             };
 
-            let folders = list
-                .common_prefixes
-                .iter()
-                .flatten()
-                .map(|dir| dir.prefix.strip_prefix(&prefix));
+            let folders = list.common_prefixes.iter().flatten().map(|dir| {
+                let path = dir.prefix.strip_prefix(&prefix);
+                path.map(|path| FileViewItem {
+                    path: path.to_owned(),
+                    size_bytes: 0,
+                    size: "[DIR]".to_owned(),
+                    last_modification: String::default(),
+                })
+            });
 
-            let files = list
-                .contents
-                .iter()
-                .map(|obj| obj.key.strip_prefix(&prefix));
+            let files = list.contents.iter().map(|obj| {
+                let path = obj.key.strip_prefix(&prefix);
+                path.map(|path| FileViewItem {
+                    path: path.to_owned(),
+                    size_bytes: obj.size,
+                    size: size_bytes_to_human(obj.size),
+                    last_modification: obj.last_modified.clone(),
+                })
+            });
 
             folders.chain(files).collect()
         })
         .flatten()
-        .map(str::to_owned)
         .collect();
 
     Ok(objects)
+}
+
+fn size_bytes_to_human(bytes: u64) -> String {
+    use human_size::{Any, SpecificSize};
+
+    let size: f64 = bytes as f64;
+    let digits = size.log10().floor() as u32;
+    let mut order = digits / 3;
+    let unit = match order {
+        0 => Any::Byte,
+        1 => Any::Kilobyte,
+        2 => Any::Megabyte,
+        _ => {
+            order = 3; // Let's stop here.
+            Any::Gigabyte
+        }
+    };
+
+    format!(
+        "{:.3}",
+        SpecificSize::new(size / 10u64.pow(order * 3) as f64, unit)
+            .unwrap_or(SpecificSize::new(0., Any::Byte).unwrap())
+    )
 }
 
 #[rocket::launch]
