@@ -13,7 +13,7 @@
             {% endif %}
 
             {% for object in objects %}
-            <li><a href="{{ object }}">{{ object }}</a></li>
+            <li><a href="{{ object | urlencode }}">{{ object }}</a></li>
             {% endfor %}
         </ul>
     </body>
