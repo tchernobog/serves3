@@ -44,3 +44,12 @@ repos:
   hooks:
   - id: reuse
     name: Check copyright and license information
+
+- repo: local
+  hooks:
+    - id: cargo-deny
+      name: Run cargo deny to check dependencies
+      language: system
+      entry: cargo-deny
+      args: ['check']
+      pass_filenames: false

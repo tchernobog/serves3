@@ -56,6 +56,18 @@ Then, e.g. for running on port 8000, you would put the corresponding configurati
 
 ## Build and install
 
+If you want more granular control on installation options, use CMake:
+
+```bash
+cmake -B build .
+cmake --build build
+cmake --install build
+cd run-folder # folder with Settings.toml
+serves3
+```
+
+Else you can simply rely on `cargo`:
+
 ```bash
 cargo install --root /usr/local --path . # for instance
 cd run-folder # folder with Settings.toml

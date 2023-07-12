@@ -63,7 +63,7 @@ lazy_static! {
     static ref FILEVIEW_TEMPLATE: &'static str = std::include_str!("../templates/index.html.tera");
 
     // Workaround for https://github.com/SergioBenitez/Rocket/issues/1792
-    static ref EMPTY_DIR: tempdir::TempDir = tempdir::TempDir::new("serves3")
+    static ref EMPTY_DIR: tempfile::TempDir = tempfile::tempdir()
         .expect("Unable to create an empty temporary folder, is the whole FS read-only?");
 }
 
