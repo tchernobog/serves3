@@ -16,6 +16,6 @@ human-size = "0.4"
 lazy_static = "1.4"
 rocket = { git = "https://github.com/SergioBenitez/Rocket", rev = "v0.5.0-rc.3" }
 rocket_dyn_templates = { git = "https://github.com/SergioBenitez/Rocket.git", rev = "v0.5.0-rc.3", features = ["tera"] }
-rust-s3 = { version = "0.32", default-features = false, features = ["tokio-rustls-tls"] }
+rust-s3 = { version = "0.33", default-features = false, features = ["tokio-native-tls"] }
 serde = { version = "1.0" }
 tempfile = { version = "3.6" }
