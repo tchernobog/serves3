@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: CC0-1.0
 {
     "recommendations": [
-        "bungcip.better-toml",
+        "tamasfe.even-better-toml",
         "ritwickdey.LiveServer",
         "rust-lang.rust-analyzer",
         "serayuzgur.crates",
