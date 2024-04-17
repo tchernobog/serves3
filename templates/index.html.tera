@@ -44,7 +44,7 @@
 
                 {% for object in objects %}
                 <tr>
-                    <td><a href="{{ object.path | urlencode }}" data-size-bytes="{{ object.size_bytes }}">{{ object.path }}</a></td>
+                    <td><a href="/{{ object.parent | urlencode }}{{ object.path | urlencode }}" data-size-bytes="{{ object.size_bytes }}">{{ object.path }}</a></td>
                     <td>{{ object.size }}</td>
                     <td>{{ object.last_modification}}</td>
                 </tr>

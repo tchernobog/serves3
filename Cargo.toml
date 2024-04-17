@@ -28,3 +28,6 @@ rocket_dyn_templates = { version = "0.1.0", features = ["tera"] }
 rust-s3 = { version = "0.33", default-features = false, features = ["tokio-native-tls"] }
 serde = { version = "1.0" }
 tempfile = { version = "3.6" }
+
+[dev-dependencies]
+rstest = "0.19"

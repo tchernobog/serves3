@@ -78,6 +78,7 @@ enum FileView {
 
 #[derive(Serialize)]
 struct FileViewItem {
+    parent: String,
     path: String,
     size: String,
     size_bytes: u64,
@@ -106,7 +107,7 @@ async fn index(path: PathBuf) -> Result<FileView, Error> {
        We try first to retrieve list an object as a file. If we fail,
        we fallback to retrieving the equivalent folder.
     */
-
+    
     if let Ok(result) = s3_serve_file(&path).await {
         Ok(result)
     } else {
@@ -159,7 +160,7 @@ async fn s3_fileview(path: &PathBuf) -> Result<Vec<FileViewItem>, Error> {
     };
 
     let s3_objects = BUCKET
-        .list(s3_folder_path, Some("/".into()))
+        .list(s3_folder_path.clone(), Some("/".into()))
         .await
         .map_err(|_| Error::NotFound("Object not found".into()))?;
 
@@ -175,6 +176,7 @@ async fn s3_fileview(path: &PathBuf) -> Result<Vec<FileViewItem>, Error> {
             let folders = list.common_prefixes.iter().flatten().map(|dir| {
                 let path = dir.prefix.strip_prefix(&prefix);
                 path.map(|path| FileViewItem {
+                    parent:s3_folder_path.clone(),
                     path: path.to_owned(),
                     size_bytes: 0,
                     size: "[DIR]".to_owned(),
@@ -185,6 +187,7 @@ async fn s3_fileview(path: &PathBuf) -> Result<Vec<FileViewItem>, Error> {
             let files = list.contents.iter().map(|obj| {
                 let path = obj.key.strip_prefix(&prefix);
                 path.map(|path| FileViewItem {
+                    parent:s3_folder_path.clone(),
                     path: path.to_owned(),
                     size_bytes: obj.size,
                     size: size_bytes_to_human(obj.size),
@@ -237,4 +240,27 @@ fn rocket() -> _ {
                 .add_raw_template("index", *FILEVIEW_TEMPLATE)
                 .unwrap()
         }))
+}
+
+// Test section starts
+
+#[cfg(test)]
+mod tests {
+    use rstest::rstest;
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[rstest]
+    #[case(1024, "1.024 kB")]
+    #[case(10240, "10.240 kB")]
+    #[case(1024*1024, "1.049 MB")]
+    #[case(1024*1024*1024, "1.074 GB")]
+    #[case(0, "0.000 B")]
+    #[case(u64::MAX, format!("{:.3} GB",u64::MAX as f64/(1_000_000_000.0)))]
+    #[case(u64::MIN, format!("{:.3} B",u64::MIN as f64))]
+
+    fn test_size_bytes_to_human(#[case] bytes: u64, #[case] expected: String) {
+        println!("{}",size_bytes_to_human(bytes));
+        assert_eq!(size_bytes_to_human(bytes), expected);
+    }
 }
