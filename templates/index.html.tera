@@ -5,11 +5,6 @@
 -->
 <html>
     <head>
-    <script type="text/javascript">
-        if (window.location.pathname.endsWith('/') === false) {
-            window.location.href = window.location + "/";
-        }
-    </script>
     <style>
         body {
             font-family: monospace;

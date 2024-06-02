@@ -11,9 +11,9 @@ Also helpful to do a different TLS termination.
 
 ## Configuration
 
-Copy `Settings.toml.example` to `Settings.toml` and adjust your settings.
+Copy `serves3.toml.example` to `serves3.toml` and adjust your settings.
 
-You can also add a `Rocket.toml` file to customize the server options. See the [Rocket documentation](https://rocket.rs/v0.5-rc/guide/configuration/#rockettoml).
+You can also use the same file to customize the server options. See the [Rocket documentation](https://rocket.rs/v0.5-rc/guide/configuration/#rockettoml) for a list of understood values.
 
 Then just configure Apache or NGINX to proxy to the given port. For example:
 
@@ -73,3 +73,13 @@ cargo install --root /usr/local --path . # for instance
 cd run-folder # folder with Settings.toml
 serves3
 ```
+
+# Changelog
+
+## 1.1.0 Reworked configuration file logic
+
+* **Breaking change**: configuration file renamed to `serves3.toml`. Please note that the format changed slightly; have a look at the provided `serves3.toml.example` file for reference.
+
+## 1.0.0
+
+* Initial release.

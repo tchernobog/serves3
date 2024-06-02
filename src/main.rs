@@ -1,71 +1,25 @@
 // SPDX-FileCopyrightText: © Matteo Settenvini <matteo.settenvini@montecristosoftware.eu>
 // SPDX-License-Identifier: EUPL-1.2
 
+mod settings;
+
 use {
+    anyhow::Result,
     lazy_static::lazy_static,
-    rocket::response::Responder,
-    rocket::serde::Serialize,
+    rocket::{
+        fairing::AdHoc,
+        figment::{
+            providers::{Env, Format as _, Toml},
+            Profile,
+        },
+        response::Responder,
+        serde::Serialize,
+        State,
+    },
     rocket_dyn_templates::{context, Template},
+    settings::Settings,
     std::path::PathBuf,
 };
-
-struct Settings {
-    access_key_id: String,
-    secret_access_key: String,
-    bucket_name: String,
-    endpoint: String,
-    region: String,
-}
-
-lazy_static! {
-    static ref SETTINGS: Settings = {
-        let settings = config::Config::builder()
-            .add_source(config::File::with_name("Settings.toml"))
-            .add_source(config::Environment::with_prefix("SERVES3"))
-            .build()
-            .unwrap();
-
-        Settings {
-            access_key_id: settings
-                .get_string("access_key_id")
-                .expect("Missing configuration key access_key_id"),
-            secret_access_key: settings
-                .get_string("secret_access_key")
-                .expect("Missing configuration key secret_access_key"),
-            bucket_name: settings
-                .get_string("bucket")
-                .expect("Missing configuration key bucket"),
-            region: settings
-                .get_string("region")
-                .expect("Missing configuration key region"),
-            endpoint: settings
-                .get_string("endpoint")
-                .expect("Missing configuration key endpoint"),
-        }
-    };
-    static ref BUCKET: s3::bucket::Bucket = {
-        let region = s3::Region::Custom {
-            region: SETTINGS.region.clone(),
-            endpoint: SETTINGS.endpoint.clone(),
-        };
-
-        let credentials = s3::creds::Credentials::new(
-            Some(&SETTINGS.access_key_id),
-            Some(&SETTINGS.secret_access_key),
-            None,
-            None,
-            None,
-        )
-        .expect("Wrong server S3 configuration");
-        s3::bucket::Bucket::new(&SETTINGS.bucket_name, region, credentials)
-            .expect("Cannot find or authenticate to S3 bucket")
-    };
-    static ref FILEVIEW_TEMPLATE: &'static str = std::include_str!("../templates/index.html.tera");
-
-    // Workaround for https://github.com/SergioBenitez/Rocket/issues/1792
-    static ref EMPTY_DIR: tempfile::TempDir = tempfile::tempdir()
-        .expect("Unable to create an empty temporary folder, is the whole FS read-only?");
-}
 
 #[derive(Responder)]
 enum FileView {
@@ -94,7 +48,7 @@ enum Error {
 }
 
 #[rocket::get("/<path..>")]
-async fn index(path: PathBuf) -> Result<FileView, Error> {
+async fn index(path: PathBuf, state: &State<Settings>) -> Result<FileView, Error> {
     /*
        The way things work in S3, the following holds for us:
        - we need to use a slash as separator
@@ -107,10 +61,10 @@ async fn index(path: PathBuf) -> Result<FileView, Error> {
        we fallback to retrieving the equivalent folder.
     */
 
-    if let Ok(result) = s3_serve_file(&path).await {
+    if let Ok(result) = s3_serve_file(&path, &state).await {
         Ok(result)
     } else {
-        let objects = s3_fileview(&path).await?;
+        let objects = s3_fileview(&path, &state).await?;
         let rendered = Template::render(
             "index",
             context! {
@@ -122,7 +76,7 @@ async fn index(path: PathBuf) -> Result<FileView, Error> {
     }
 }
 
-async fn s3_serve_file(path: &PathBuf) -> Result<FileView, Error> {
+async fn s3_serve_file(path: &PathBuf, settings: &Settings) -> Result<FileView, Error> {
     let is_root_prefix = path.as_os_str().is_empty();
     if is_root_prefix {
         return Err(Error::NotFound("Root prefix is not a file".into()));
@@ -130,7 +84,8 @@ async fn s3_serve_file(path: &PathBuf) -> Result<FileView, Error> {
 
     // FIXME: this can be big, we should use streaming,
     // not loading in memory!
-    let response = BUCKET
+    let response = settings
+        .s3_bucket
         .get_object(format!("{}", path.display()))
         .await
         .map_err(|_| Error::UnknownError("Unable to connect to S3 bucket".into()))?;
@@ -145,7 +100,7 @@ async fn s3_serve_file(path: &PathBuf) -> Result<FileView, Error> {
     }
 }
 
-async fn s3_fileview(path: &PathBuf) -> Result<Vec<FileViewItem>, Error> {
+async fn s3_fileview(path: &PathBuf, settings: &Settings) -> Result<Vec<FileViewItem>, Error> {
     /*
         if listing a folder:
         - folders will be under 'common_prefixes'
@@ -158,8 +113,9 @@ async fn s3_fileview(path: &PathBuf) -> Result<Vec<FileViewItem>, Error> {
         None => "".into(),
     };
 
-    let s3_objects = BUCKET
-        .list(s3_folder_path.clone(), Some("/".into()))
+    let s3_objects = settings
+        .s3_bucket
+        .list(s3_folder_path, Some("/".into()))
         .await
         .map_err(|_| Error::NotFound("Object not found".into()))?;
 
@@ -223,27 +179,35 @@ fn size_bytes_to_human(bytes: u64) -> String {
     )
 }
 
+lazy_static! {
+    // Workaround for https://github.com/SergioBenitez/Rocket/issues/1792
+    static ref EMPTY_DIR: tempfile::TempDir = tempfile::tempdir()
+        .expect("Unable to create an empty temporary folder, is the whole FS read-only?");
+}
+
 #[rocket::launch]
 fn rocket() -> _ {
-    eprintln!("Proxying to {} for {}", BUCKET.host(), BUCKET.name());
-
-    let config_figment = rocket::Config::figment().merge(("template_dir", EMPTY_DIR.path())); // We compile the templates in anyway.
+    let config_figment = rocket::Config::figment()
+        .merge(Toml::file("serves3.toml").nested())
+        .merge(Env::prefixed("SERVES3_").global())
+        .merge(("template_dir", EMPTY_DIR.path())) // We compile the templates in anyway
+        .select(Profile::from_env_or("SERVES3_PROFILE", "default"));
 
     rocket::custom(config_figment)
         .mount("/", rocket::routes![index])
+        .attach(AdHoc::config::<Settings>())
         .attach(Template::custom(|engines| {
             engines
                 .tera
-                .add_raw_template("index", *FILEVIEW_TEMPLATE)
+                .add_raw_template("index", std::include_str!("../templates/index.html.tera"))
                 .unwrap()
         }))
 }
 
-// Test section starts
+// -------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rstest::rstest;
 
     #[rstest]
@@ -254,9 +218,7 @@ mod tests {
     #[case(0, "0.000 B")]
     #[case(u64::MAX, format!("{:.3} GB",u64::MAX as f64/(1_000_000_000.0)))]
     #[case(u64::MIN, format!("{:.3} B",u64::MIN as f64))]
-
-    fn test_size_bytes_to_human(#[case] bytes: u64, #[case] expected: String) {
-        println!("{}", size_bytes_to_human(bytes));
-        assert_eq!(size_bytes_to_human(bytes), expected);
+    fn size_bytes_to_human(#[case] bytes: u64, #[case] expected: String) {
+        assert_eq!(super::size_bytes_to_human(bytes), expected);
     }
 }
