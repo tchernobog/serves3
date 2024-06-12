@@ -13,7 +13,8 @@ use {
             providers::{Env, Format as _, Toml},
             Profile,
         },
-        response::Responder,
+        http::uri::Origin,
+        response::{Redirect, Responder},
         serde::Serialize,
         State,
     },
@@ -29,6 +30,8 @@ enum FileView {
 
     #[response(content_type = "application/octet-stream")]
     File(Vec<u8>),
+
+    Redirect(Redirect),
 }
 
 #[derive(Serialize)]
@@ -49,7 +52,11 @@ enum Error {
 }
 
 #[rocket::get("/<path..>")]
-async fn index(path: PathBuf, state: &State<Settings>) -> Result<FileView, Error> {
+async fn index(
+    path: PathBuf,
+    uri: &Origin<'_>,
+    state: &State<Settings>,
+) -> Result<FileView, Error> {
     /*
        The way things work in S3, the following holds for us:
        - we need to use a slash as separator
@@ -61,10 +68,17 @@ async fn index(path: PathBuf, state: &State<Settings>) -> Result<FileView, Error
        We try first to retrieve list an object as a file. If we fail,
        we fallback to retrieving the equivalent folder.
     */
-
     if let Ok(result) = s3_serve_file(&path, &state).await {
         Ok(result)
     } else {
+        // We need to redirect to a path ending with a slash as
+        // per comment above if we know this is not a file.
+        let mut uri = uri.to_string();
+        if !uri.ends_with('/') {
+            uri.push('/');
+            return Ok(FileView::Redirect(Redirect::permanent(uri)));
+        }
+
         let objects = s3_fileview(&path, &state).await?;
         let rendered = Template::render(
             "index",
