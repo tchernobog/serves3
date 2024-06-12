@@ -23,7 +23,7 @@ repos:
     name: Ensure no trailing spaces at the end of lines
 
 - repo: https://github.com/Lucas-C/pre-commit-hooks.git
-  rev: v1.5.2
+  rev: v1.5.5
   hooks:
   - id: remove-crlf
     name: Enforce LF instead of CRLF for newlines
@@ -40,7 +40,7 @@ repos:
     name: Check Rust code
 
 - repo: https://github.com/fsfe/reuse-tool.git
-  rev: v2.1.0
+  rev: v3.0.2
   hooks:
   - id: reuse
     name: Check copyright and license information

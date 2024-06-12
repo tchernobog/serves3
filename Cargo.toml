@@ -3,7 +3,7 @@
 
 [package]
 name = "serves3"
-version = "1.0.0"
+version = "1.1.0"
 
 authors = ["Matteo Settenvini <matteo.settenvini@montecristosoftware.eu>"]
 description = "A very simple proxy to browse files from private S3 buckets"
@@ -20,11 +20,26 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-config = "0.13"
+anyhow = "1.0"
 human-size = "0.4"
 lazy_static = "1.4"
+log = "0.4"
 rocket = "0.5"
-rocket_dyn_templates = { version = "0.1.0", features = ["tera"] }
-rust-s3 = { version = "0.33", default-features = false, features = ["tokio-native-tls"] }
+rocket_dyn_templates = { version = "0.2.0", features = ["tera"] }
+rust-s3 = { version = "0.33", default-features = false, features = [
+    "tokio-native-tls",
+] }
 serde = { version = "1.0" }
 tempfile = { version = "3.6" }
+
+[dev-dependencies]
+libc = "0.2"
+futures = "0.3"
+regex = "1.10"
+rstest = "0.21"
+reqwest = "0.12"
+scraper = "0.19"
+test-log = "0.2"
+testcontainers = "0.17"
+testcontainers-modules = { version = "0.5", features = ["minio"] }
+tokio = { version = "1", features = ["process"] }

@@ -1,9 +1,10 @@
 # SPDX-FileCopyrightText: Public domain.
 # SPDX-License-Identifier: CC0-1.0
 
-access_key_id = ""
-secret_access_key = ""
-
-bucket = ""
+[default.s3_bucket]
+name = ""
 endpoint = "https://eu-central-1.linodeobjects.com"
 region = "eu-central-1"
+access_key_id = ""
+secret_access_key = ""
+path_style = false
