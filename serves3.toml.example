@@ -1,10 +1,28 @@
 # SPDX-FileCopyrightText: Public domain.
 # SPDX-License-Identifier: CC0-1.0
 
+# apply this configuration to Rocket's "default" profile
 [default.s3_bucket]
+
+# the bucket name
 name = ""
+ # the API endpoint address
 endpoint = "https://eu-central-1.linodeobjects.com"
+# the bucket region
 region = "eu-central-1"
+# the access key ID
 access_key_id = ""
+# the access key secret
 secret_access_key = ""
+# whether to use path_style S3 URLs, see
+# https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html#path-style-access
 path_style = false
+
+# Here you can add any other rocket options, see
+# https://rocket.rs/guide/v0.5/configuration/
+
+[default]
+
+[debug]
+
+[release]

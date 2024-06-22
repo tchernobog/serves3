@@ -1,5 +1,8 @@
-[//]: # SPDX-FileCopyrightText: © Matteo Settenvini <matteo.settenvini@montecristosoftware.eu>
-[//]: # SPDX-License-Identifier: EUPL-1.2
+
+<!--
+    SPDX-FileCopyrightText: © Matteo Settenvini <matteo.settenvini@montecristosoftware.eu>
+    SPDX-License-Identifier: EUPL-1.2
+-->
 
 # serves3
 
@@ -11,7 +14,37 @@ Also helpful to do a different TLS termination.
 
 ## Configuration
 
-Copy `serves3.toml.example` to `serves3.toml` and adjust your settings.
+Copy `serves3.toml.example` to `serves3.toml` from this project's sources and adjust your settings. If the project was built and installed via CMake, a copy of the example settings file is in `/usr/share/doc/serves3`.
+
+For instance:
+
+```toml
+# apply this configuration to Rocket's "default" profile
+[default.s3_bucket]
+
+# the bucket name
+name = ""
+ # the API endpoint address
+endpoint = "https://eu-central-1.linodeobjects.com"
+# the bucket region
+region = "eu-central-1"
+# the access key ID
+access_key_id = ""
+# the access key secret
+secret_access_key = ""
+# whether to use path_style S3 URLs, see
+# https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html#path-style-access
+path_style = false
+
+# Here you can add any other rocket options, see
+# https://rocket.rs/guide/v0.5/configuration/
+
+[default]
+
+[debug]
+
+[release]
+```
 
 You can also use the same file to customize the server options. See the [Rocket documentation](https://rocket.rs/v0.5-rc/guide/configuration/#rockettoml) for a list of understood values.
 
@@ -59,10 +92,10 @@ Then, e.g. for running on port 8000, you would put the corresponding configurati
 If you want more granular control on installation options, use CMake:
 
 ```bash
-cmake -B build .
+cmake -DCMAKE_INSTALL_PREFIX=/usr -B build .
 cmake --build build
-cmake --install build
-cd run-folder # folder with Settings.toml
+sudo cmake --install build
+cd run-folder # folder with serves3.toml
 serves3
 ```
 
@@ -70,7 +103,7 @@ Else you can simply rely on `cargo`:
 
 ```bash
 cargo install --root /usr/local --path . # for instance
-cd run-folder # folder with Settings.toml
+cd run-folder # folder with serves3.toml
 serves3
 ```
 
@@ -79,6 +112,7 @@ serves3
 ## 1.1.0 Reworked configuration file logic
 
 * **Breaking change**: configuration file renamed to `serves3.toml`. Please note that the format changed slightly; have a look at the provided `serves3.toml.example` file for reference.
+* Fixes #2: URLs to directories not ending with a slash are not redirected properly
 
 ## 1.0.0
 
